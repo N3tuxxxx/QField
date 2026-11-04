@@ -1,4 +1,4 @@
-set(NUGET_SOURCE "https://nuget.pkg.github.com/opengisch/index.json")
+set(NUGET_SOURCE "https://nuget.pkg.github.com/opengisch/index.json" CACHE STRING "Nuget binary cache source")
 set(NUGET_USERNAME "qfield-fairy" CACHE STRING "Nuget user")
 # Obfuscate a (read only) github token, if it's here clear text it will be invalidated
 # Python: print(*(ord(i) for i in token), sep=";")
@@ -108,7 +108,7 @@ if(NOT "${NUGET_TOKEN}" STREQUAL "" AND (_HOST_IS_WINDOWS OR EXISTS "${_VCPKG_MO
     "${_CONFIG_PATH}"
     @ONLY)
   execute_process(
-    COMMAND ${_NUGET_EXE} setapikey "${NUGET_TOKEN}" -src "https://nuget.pkg.github.com/opengisch/index.json" -configfile ${_CONFIG_PATH}
+    COMMAND ${_NUGET_EXE} setapikey "${NUGET_TOKEN}" -src "${NUGET_SOURCE}" -configfile ${_CONFIG_PATH}
     OUTPUT_VARIABLE _OUTPUT
     ERROR_VARIABLE _ERROR
     RESULT_VARIABLE _RESULT)

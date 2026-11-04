@@ -1,0 +1,143 @@
+name: 📱 Android (RD8100 fork build)
+# Builds an installable arm64 debug APK on a fork, without the upstream secrets.
+# vcpkg binaries are cached in the fork owner's GitHub Packages NuGet feed: when the
+# first build hits the 6 hours job limit, re-running the workflow resumes from the cache.
+on:
+  push:
+    branches:
+      - 'feature/rd8100-**'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    env:
+      TRIPLET: arm64-android
+      ALL_FILES_ACCESS: 'OFF'
+      ARTIFACT_NAME: android-arm64
+      # Read by scripts/ci/generate-version-details.sh: installs alongside the official QField
+      CUSTOM_APP_NAME: QField Detection
+      NIGHTLY_PACKAGE_NAME: ch.opengis.qfield_detection
+
+    steps:
+      - name: 🐣 Checkout
+        uses: actions/checkout@v7.0.1
+        with:
+          submodules: recursive
+
+      - name: 🧹 Reclaim disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf "/usr/local/share/boost"
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+          df . -h
+
+      - name: 🌾 Prepare variables
+        shell: bash
+        run: |
+          NDK_VERSION=29.0.14206865
+          echo "JAVA_HOME=${JAVA_HOME_17_X64}" >> $GITHUB_ENV
+          echo "ANDROID_BUILD_TOOLS_VERSION=35.0.1" >> $GITHUB_ENV
+          echo "ANDROID_NDK_VERSION=${NDK_VERSION}" >> $GITHUB_ENV
+          echo "ANDROID_NDK=/usr/local/lib/android/sdk/ndk/${NDK_VERSION}" >> $GITHUB_ENV
+          echo "ANDROID_NDK_HOME=/usr/local/lib/android/sdk/ndk/${NDK_VERSION}" >> $GITHUB_ENV
+          echo "ANDROID_NDK_ROOT=/usr/local/lib/android/sdk/ndk/${NDK_VERSION}" >> $GITHUB_ENV
+          echo "ndk.dir=/usr/local/lib/android/sdk/ndk/${NDK_VERSION}" >> local.properties
+          ./scripts/ci/env_gh.sh
+
+          BUILD_ROOT="/home/runner"
+          echo "BUILD_ROOT=${BUILD_ROOT}" >> $GITHUB_ENV
+          echo "BUILD_TYPE=Release" >> $GITHUB_ENV
+          echo "CMAKE_BUILD_DIR=${BUILD_ROOT}/builddir" >> $GITHUB_ENV
+
+      - name: 🪟 Setup .NET
+        uses: actions/setup-dotnet@v6.0.0
+        with:
+          dotnet-version: 8.0.x
+
+      - name: 🐵 Install Mono
+        run: |
+          sudo apt install ca-certificates gnupg
+          sudo gpg --homedir /tmp --no-default-keyring --keyring gnupg-ring:/usr/share/keyrings/mono-official-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 3FA7E0328081BFF6A14DA29AA6A19B38D3D831EF
+          sudo chmod +r /usr/share/keyrings/mono-official-archive-keyring.gpg
+          echo "deb [signed-by=/usr/share/keyrings/mono-official-archive-keyring.gpg] https://download.mono-project.com/repo/ubuntu stable-focal main" | sudo tee /etc/apt/sources.list.d/mono-official-stable.list
+          sudo apt update
+          sudo apt install mono-devel
+
+      - name: 🔨 Prepare build env
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gperf autopoint '^libxcb.*-dev' libxrandr-dev libx11-xcb-dev libsm-dev libegl1-mesa-dev libglu1-mesa-dev libxrender-dev libxi-dev libxkbcommon-dev libxkbcommon-x11-dev autoconf-archive libgstreamer-gl1.0-0 libgstreamer-plugins-base1.0-0 libfuse2 libcups2-dev nasm libltdl-dev
+          wget https://github.com/Kitware/CMake/releases/download/v3.31.6/cmake-3.31.6-linux-x86_64.sh -O /tmp/cmakeinstall.sh
+          chmod +x /tmp/cmakeinstall.sh
+          sudo /tmp/cmakeinstall.sh --prefix=/usr/local --exclude-subdir
+          rm /tmp/cmakeinstall.sh
+          sudo apt-get install -y ninja-build
+
+      # Headers and libraries of sentry-android-ndk are needed at compile time, see android.yml
+      - name: 📐 Download sentry libs
+        run: |
+          mkdir /tmp/sentry-android-ndk
+          wget https://repo1.maven.org/maven2/io/sentry/sentry-android-ndk/7.22.6/sentry-android-ndk-7.22.6.aar -O /tmp/sentry.zip
+          unzip /tmp/sentry.zip -d /tmp/sentry-android-ndk
+
+      - name: 🌱 Install dependencies and generate project files
+        run: |
+          source ./scripts/version_number.sh
+          source ./scripts/ci/generate-version-details.sh
+
+          cmake -S "${{ github.workspace }}" \
+                -B "${CMAKE_BUILD_DIR}" \
+                -G Ninja \
+                -D CMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+                -D ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT} \
+                -D ANDROID_NDK_VERSION="${ANDROID_NDK_VERSION}" \
+                -D ANDROID_BUILD_TOOLS_VERSION="${ANDROID_BUILD_TOOLS_VERSION}" \
+                -D VCPKG_TARGET_TRIPLET="${TRIPLET}" \
+                -D WITH_ALL_FILES_ACCESS="${ALL_FILES_ACCESS}" \
+                -D WITH_SPIX=OFF \
+                -D APP_VERSION="${APP_VERSION}" \
+                -D APK_VERSION_CODE="${APK_VERSION_CODE}" \
+                -D APP_VERSION_STR="${APP_VERSION_STR}" \
+                -D APP_PACKAGE_NAME="${APP_PACKAGE_NAME}" \
+                -D APP_ICON="${APP_ICON}" \
+                -D APP_NAME="${APP_NAME}" \
+                -D NUGET_SOURCE="https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" \
+                -D NUGET_USERNAME="${{ github.repository_owner }}" \
+                -D NUGET_TOKEN=${{ secrets.GITHUB_TOKEN }} \
+                -D SENTRY_IMPORT_PREFIX=/tmp/sentry-android-ndk/jni \
+                -D VCPKG_INSTALL_OPTIONS="--x-abi-tools-use-exact-versions"
+
+      - name: 📑 Upload dependency build logs
+        uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: build-logs-${{ env.TRIPLET }}
+          path: |
+            ${{ env.CMAKE_BUILD_DIR }}/**/*.log
+
+      - name: 🌋 Build
+        run: |
+          cmake --build "${{ env.CMAKE_BUILD_DIR }}" --config ${{ env.BUILD_TYPE }}
+
+      # Without signing secrets, androiddeployqt produces a debug-signed APK that installs directly
+      - name: 📦 Package
+        run: |
+          cmake --build "${{ env.CMAKE_BUILD_DIR }}" --target bundle --config Release
+          cp "${{ env.CMAKE_BUILD_DIR }}/src/app/android-build/build/outputs/apk/debug/android-build-debug.apk" "/tmp/${{ env.CI_PACKAGE_NAME }}-rd8100-${{ env.ARTIFACT_NAME }}.apk"
+
+      - name: 📤 Upload APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ env.CI_PACKAGE_NAME }}-rd8100-${{ env.ARTIFACT_NAME }}
+          path: /tmp/${{ env.CI_PACKAGE_NAME }}-rd8100-${{ env.ARTIFACT_NAME }}.apk

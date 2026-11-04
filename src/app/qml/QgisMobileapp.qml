@@ -5597,6 +5597,65 @@ ApplicationWindow {
     positionInformation: positionSource.positionInformation
     positionLocked: coordinateLocator.positionLocked
     cloudUserInformation: projectInfo.cloudUserInformation
+    rd8100Measurement: rd8100Receiver.lastMeasurement
+  }
+
+  QfRd8100Receiver {
+    id: rd8100Receiver
+    objectName: "rd8100Receiver"
+
+    active: qfieldSettings.rd8100Enabled
+
+    onMeasurementReceived: measurement => {
+      mainWindow.handleRd8100Measurement(measurement);
+    }
+
+    onFrameRejected: reason => {
+      displayToast(qsTr("Invalid data received from the RD8100 locator"), 'warning');
+    }
+  }
+
+  Connections {
+    // A pending RD8100 measurement is consumed by the next feature added to the active layer
+    target: dashBoard.activeLayer
+    ignoreUnknownSignals: true
+
+    function onFeatureAdded(fid) {
+      rd8100Receiver.clearLastMeasurement();
+    }
+  }
+
+  /**
+   * Returns the layer named or identified by the "rd8100_layer" project variable, or null
+   */
+  function rd8100TargetLayer() {
+    const target = QfExpressionContextUtils.projectVariables(qgisProject)["rd8100_layer"];
+    if (!target) {
+      return null;
+    }
+    const layers = QfProjectUtils.mapLayers(qgisProject);
+    for (const layerId in layers) {
+      if (layerId === target || layers[layerId].name === target) {
+        return layers[layerId];
+      }
+    }
+    displayToast(qsTr("The RD8100 target layer '%1' was not found in the project").arg(target), 'warning');
+    return null;
+  }
+
+  function handleRd8100Measurement(measurement) {
+    const busy = overlayFeatureFormDrawer.opened || (digitizingToolbar.rubberbandModel && digitizingToolbar.rubberbandModel.vertexCount > 1);
+    if (!busy) {
+      const layer = rd8100TargetLayer();
+      if (layer) {
+        dashBoard.activeLayer = layer;
+      }
+      if (stateMachine.state !== "digitize") {
+        changeMode("digitize");
+      }
+    }
+    const logNumber = measurement.log_number !== undefined && measurement.log_number !== null ? measurement.log_number : "?";
+    displayToast(qsTr("RD8100 measurement #%1 received, add a point to store it").arg(logNumber));
   }
 
   Connections {

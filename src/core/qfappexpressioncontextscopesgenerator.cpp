@@ -65,6 +65,20 @@ void QfAppExpressionContextScopesGenerator::setCloudUserInformation( const QfClo
   emit cloudUserInformationChanged();
 }
 
+QVariantMap QfAppExpressionContextScopesGenerator::rd8100Measurement() const
+{
+  return mRd8100Measurement;
+}
+
+void QfAppExpressionContextScopesGenerator::setRd8100Measurement( const QVariantMap &measurement )
+{
+  if ( mRd8100Measurement == measurement )
+    return;
+
+  mRd8100Measurement = measurement;
+  emit rd8100MeasurementChanged();
+}
+
 QList<QgsExpressionContextScope *> QfAppExpressionContextScopesGenerator::generate()
 {
   QList<QgsExpressionContextScope *> scopes;
@@ -74,6 +88,10 @@ QList<QgsExpressionContextScope *> QfAppExpressionContextScopesGenerator::genera
     scopes << QfExpressionContextUtils::positionScope( mPositionInformation, mPositionLocked );
   }
   scopes << QfExpressionContextUtils::cloudUserScope( mCloudUserInformation );
+  if ( !mRd8100Measurement.isEmpty() )
+  {
+    scopes << QfExpressionContextUtils::rd8100Scope( mRd8100Measurement );
+  }
 
   return scopes;
 }

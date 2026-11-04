@@ -104,6 +104,17 @@ QgsExpressionContextScope *QfExpressionContextUtils::cloudUserScope( const QfClo
   return scope;
 }
 
+QgsExpressionContextScope *QfExpressionContextUtils::rd8100Scope( const QVariantMap &measurement )
+{
+  QgsExpressionContextScope *scope = new QgsExpressionContextScope( QObject::tr( "RD8100 Measurement" ) );
+
+  for ( auto it = measurement.constBegin(); it != measurement.constEnd(); ++it )
+  {
+    scope->addVariable( QgsExpressionContextScope::StaticVariable( QStringLiteral( "rd8100_%1" ).arg( it.key() ), it.value(), true, true ) );
+  }
+  return scope;
+}
+
 QVariantMap QfExpressionContextUtils::layerVariables( QgsMapLayer *layer )
 {
   if ( !layer )

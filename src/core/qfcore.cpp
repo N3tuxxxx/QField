@@ -122,6 +122,7 @@
 #ifdef WITH_BLUETOOTH
 #include "positioning/qfbluetoothdevicemodel.h"
 #include "positioning/qfbluetoothreceiver.h"
+#include "rd8100/qfrd8100receiver.h"
 #endif
 #ifdef WITH_SERIALPORT
 #include "positioning/qfserialportmodel.h"
@@ -250,6 +251,7 @@ namespace QfCore
 #ifdef WITH_BLUETOOTH
     qmlRegisterType<QfBluetoothDeviceModel>( "org.qfield.core", 1, 0, "QfBluetoothDeviceModel" );
     qmlRegisterType<QfBluetoothReceiver>( "org.qfield.core", 1, 0, "QfBluetoothReceiver" );
+    qmlRegisterType<QfRd8100Receiver>( "org.qfield.core", 1, 0, "QfRd8100Receiver" );
 #endif
 #ifdef WITH_SERIALPORT
     qmlRegisterType<QfSerialPortModel>( "org.qfield.core", 1, 0, "QfSerialPortModel" );
