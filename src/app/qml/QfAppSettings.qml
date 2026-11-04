@@ -28,6 +28,7 @@ Page {
   property alias autoSave: registry.autoSave
   property alias fingerTapDigitizing: registry.fingerTapDigitizing
   property alias mouseAsTouchScreen: registry.mouseAsTouchScreen
+  property alias rd8100Enabled: registry.rd8100Enabled
   property alias enableInfoCollection: registry.enableInfoCollection
   property alias showNews: registry.showNews
   property alias enableMapRotation: registry.enableMapRotation
@@ -134,6 +135,7 @@ Page {
     property bool autoSave: false
     property bool fingerTapDigitizing: false
     property bool mouseAsTouchScreen: false
+    property bool rd8100Enabled: false
     property bool enableInfoCollection: true
     property bool showNews: false
     property bool enableMapRotation: true
@@ -214,6 +216,12 @@ Page {
       title: qsTr("Consider mouse as a touchscreen device")
       description: qsTr("When enabled, the mouse will act as if it was a finger. When disabled, the mouse will match the stylus behavior.")
       settingAlias: "mouseAsTouchScreen"
+      isVisible: true
+    }
+    ListElement {
+      title: qsTr("Receive RD8100 locator measurements")
+      description: qsTr("When enabled, QField waits for measurements sent over Bluetooth by a paired Radiodetection RD8100 locator. Each measurement prepares a new point whose attributes can use the @rd8100_* variables, such as @rd8100_depth_m.")
+      settingAlias: "rd8100Enabled"
       isVisible: true
     }
     Component.onCompleted: {

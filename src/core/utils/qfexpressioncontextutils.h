@@ -43,6 +43,11 @@ class QfExpressionContextUtils : public QObject
     static QgsExpressionContextScope *cloudUserScope( const QfCloudUserInformation &cloudUserInformation );
 
     /**
+     * Returns a scope exposing an RD8100 locator \a measurement as rd8100_* variables.
+     */
+    static QgsExpressionContextScope *rd8100Scope( const QVariantMap &measurement );
+
+    /**
       * Returns a layer context variables.
       * \param layer map layer
       * \see setLayerVariable()

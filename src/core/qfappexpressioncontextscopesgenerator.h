@@ -21,6 +21,7 @@
 #include "qfgnsspositioninformation.h"
 
 #include <QObject>
+#include <QVariantMap>
 
 class QgsExpressionContextScope;
 
@@ -34,6 +35,7 @@ class QfAppExpressionContextScopesGenerator : public QObject
     Q_PROPERTY( QfGnssPositionInformation positionInformation READ positionInformation WRITE setPositionInformation NOTIFY positionInformationChanged )
     Q_PROPERTY( bool positionLocked READ positionLocked WRITE setPositionLocked NOTIFY positionLockedChanged )
     Q_PROPERTY( QfCloudUserInformation cloudUserInformation READ cloudUserInformation WRITE setCloudUserInformation NOTIFY cloudUserInformationChanged )
+    Q_PROPERTY( QVariantMap rd8100Measurement READ rd8100Measurement WRITE setRd8100Measurement NOTIFY rd8100MeasurementChanged )
 
   public:
     explicit QfAppExpressionContextScopesGenerator( QObject *parent = nullptr );
@@ -70,17 +72,29 @@ class QfAppExpressionContextScopesGenerator : public QObject
      */
     void setCloudUserInformation( const QfCloudUserInformation &cloudUserInformation );
 
+    /**
+     * Returns the pending RD8100 locator measurement exposed as rd8100_* variables
+     */
+    QVariantMap rd8100Measurement() const;
+
+    /**
+     * Sets the pending RD8100 locator measurement exposed as rd8100_* variables, an empty map removes them
+     */
+    void setRd8100Measurement( const QVariantMap &measurement );
+
     QList<QgsExpressionContextScope *> generate();
 
   signals:
     void positionInformationChanged();
     void positionLockedChanged();
     void cloudUserInformationChanged();
+    void rd8100MeasurementChanged();
 
   private:
     QfGnssPositionInformation mPositionInformation;
     bool mPositionLocked = false;
     QfCloudUserInformation mCloudUserInformation;
+    QVariantMap mRd8100Measurement;
 };
 
 #endif // QFAPPEXPRESSIONCONTEXTSCOPESGENERATOR_H

@@ -250,7 +250,12 @@ set(QFIELD_CORE_HDRS
     qfwebdavconnection.h
     ${CMAKE_CURRENT_BINARY_DIR}/qfield.h)
 
+list(APPEND QFIELD_CORE_SRCS rd8100/qfrd8100frameparser.cpp)
+list(APPEND QFIELD_CORE_HDRS rd8100/qfrd8100frameparser.h)
+
 if(WITH_BLUETOOTH)
+  list(APPEND QFIELD_CORE_SRCS rd8100/qfrd8100receiver.cpp)
+  list(APPEND QFIELD_CORE_HDRS rd8100/qfrd8100receiver.h)
   list(APPEND QFIELD_CORE_SRCS positioning/qfbluetoothdevicemodel.cpp
        positioning/qfbluetoothreceiver.cpp
        positioning/qfbluetoothlowenergyreceiver.cpp)
@@ -335,6 +340,7 @@ target_include_directories(
          $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src/core/positioning>
          $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src/core/processing>
          $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src/core/qfieldcloud>
+         $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src/core/rd8100>
          $<INSTALL_INTERFACE:${QFIELD_INCLUDE_SUBDIR}>)
 if(ANDROID)
   string(REPLACE "_" "_1" APP_PACKAGE_JNI_NAME "${APP_PACKAGE_NAME}")
