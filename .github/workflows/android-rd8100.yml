@@ -26,7 +26,10 @@ jobs:
       ARTIFACT_NAME: android-arm64
       # Read by scripts/ci/generate-version-details.sh: installs alongside the official QField
       CUSTOM_APP_NAME: QField Detection
+      # Internal Java namespace (ch.opengis.qfield_detection); the Android application id below is the
+      # package name registered with Google developer verification and must never change
       NIGHTLY_PACKAGE_NAME: ch.opengis.qfield_detection
+      APPLICATION_ID: fr.rbalandras.qfielddetection
       # Permanent signing key of QField Detection (public certificate fingerprint, not a secret)
       SIGNING_KEY_ALIAS: rd8100
       SIGNING_CERT_SHA256: c2a8c13b97606b16399690dbc4269dc4019b9c777c4411b9e2f9cfe43bf7676f
@@ -113,6 +116,7 @@ jobs:
                 -D APK_VERSION_CODE="${APK_VERSION_CODE}" \
                 -D APP_VERSION_STR="${APP_VERSION_STR}" \
                 -D APP_PACKAGE_NAME="${APP_PACKAGE_NAME}" \
+                -D APP_APPLICATION_ID="${{ env.APPLICATION_ID }}" \
                 -D APP_ICON="${APP_ICON}" \
                 -D APP_NAME="${APP_NAME}" \
                 -D NUGET_SOURCE="https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" \
@@ -171,6 +175,11 @@ jobs:
             | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')
           if [ "$SIGNED" != "${{ env.SIGNING_CERT_SHA256 }}" ]; then
             echo "::error::APK signed with an unexpected certificate: $SIGNED"
+            exit 1
+          fi
+          PACKAGE=$("${ANDROID_SDK_ROOT}/build-tools/${ANDROID_BUILD_TOOLS_VERSION}/aapt2" dump packagename "$APK")
+          if [ "$PACKAGE" != "${{ env.APPLICATION_ID }}" ]; then
+            echo "::error::APK has package name $PACKAGE instead of ${{ env.APPLICATION_ID }}"
             exit 1
           fi
           cp "$APK" "/tmp/${{ env.CI_PACKAGE_NAME }}-rd8100-${{ env.ARTIFACT_NAME }}.apk"

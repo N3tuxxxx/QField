@@ -15,6 +15,7 @@ set(APK_VERSION_CODE "1" CACHE STRING "Apk Version Code (Example: 1)")
 set(APP_VERSION "0" CACHE STRING "Application Version (Example: v1.0.0)")
 set(APP_VERSION_STR "local - dev" CACHE STRING "Application Version Name (Example: 1.0.0 - Homerun)")
 set(APP_PACKAGE_NAME "qfield" CACHE STRING "Package name suffix. E.g. qfield --> ch.opengis.qfield")
+set(APP_APPLICATION_ID "" CACHE STRING "Android application id, empty for ch.opengis.<APP_PACKAGE_NAME> (the Java namespace keeps ch.opengis.<APP_PACKAGE_NAME>)")
 set(APP_BUNDLED_PLUGINS "" CACHE STRING "Application bundled plugins path")
 
 string(REGEX REPLACE "v" "" CLEAN_APP_VERSION "${APP_VERSION}")
