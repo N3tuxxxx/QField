@@ -27,6 +27,9 @@ jobs:
       # Read by scripts/ci/generate-version-details.sh: installs alongside the official QField
       CUSTOM_APP_NAME: QField Detection
       NIGHTLY_PACKAGE_NAME: ch.opengis.qfield_detection
+      # Permanent signing key of QField Detection (public certificate fingerprint, not a secret)
+      SIGNING_KEY_ALIAS: rd8100
+      SIGNING_CERT_SHA256: c2a8c13b97606b16399690dbc4269dc4019b9c777c4411b9e2f9cfe43bf7676f
 
     steps:
       - name: 🐣 Checkout
@@ -130,11 +133,51 @@ jobs:
         run: |
           cmake --build "${{ env.CMAKE_BUILD_DIR }}" --config ${{ env.BUILD_TYPE }}
 
-      # Without signing secrets, androiddeployqt produces a debug-signed APK that installs directly
+      # Every APK must be signed with the same permanent key, otherwise Android refuses the update
+      # and the app has to be uninstalled, which deletes the projects stored on the phone. The key
+      # comes from the RD8100_SIGNINGKEY / RD8100_STOREPASS secrets; the build fails without them and
+      # checks the certificate fingerprint, so an APK signed with another key is never published.
+      - name: 🔑 Setup signing key
+        env:
+          SIGNINGKEY: ${{ secrets.RD8100_SIGNINGKEY }}
+          STOREPASS: ${{ secrets.RD8100_STOREPASS }}
+        run: |
+          if [ -z "$SIGNINGKEY" ] || [ -z "$STOREPASS" ]; then
+            echo "::error::Missing RD8100_SIGNINGKEY or RD8100_STOREPASS repository secret"
+            exit 1
+          fi
+          echo "$SIGNINGKEY" | base64 --decode > "${{ github.workspace }}/keystore.p12"
+          FINGERPRINT=$("${JAVA_HOME}/bin/keytool" -J-Duser.language=en -list -v -storetype PKCS12 \
+            -keystore "${{ github.workspace }}/keystore.p12" -storepass "$STOREPASS" -alias "${{ env.SIGNING_KEY_ALIAS }}" \
+            | sed -n 's/^[[:space:]]*SHA256: //p' | tr -d ':' | tr 'A-F' 'a-f')
+          if [ "$FINGERPRINT" != "${{ env.SIGNING_CERT_SHA256 }}" ]; then
+            echo "::error::Signing key fingerprint mismatch: $FINGERPRINT"
+            exit 1
+          fi
+
       - name: 📦 Package
+        env:
+          KEYNAME: ${{ env.SIGNING_KEY_ALIAS }}
+          KEYPASS: ${{ secrets.RD8100_STOREPASS }}
+          STOREPASS: ${{ secrets.RD8100_STOREPASS }}
         run: |
           cmake --build "${{ env.CMAKE_BUILD_DIR }}" --target bundle --config Release
-          cp "${{ env.CMAKE_BUILD_DIR }}/src/app/android-build/build/outputs/apk/debug/android-build-debug.apk" "/tmp/${{ env.CI_PACKAGE_NAME }}-rd8100-${{ env.ARTIFACT_NAME }}.apk"
+          APK="${{ env.CMAKE_BUILD_DIR }}/src/app/android-build/build/outputs/apk/release/android-build-release-signed.apk"
+          if [ ! -f "$APK" ]; then
+            echo "::error::Signed release APK not produced"
+            exit 1
+          fi
+          SIGNED=$("${ANDROID_SDK_ROOT}/build-tools/${ANDROID_BUILD_TOOLS_VERSION}/apksigner" verify --print-certs "$APK" \
+            | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')
+          if [ "$SIGNED" != "${{ env.SIGNING_CERT_SHA256 }}" ]; then
+            echo "::error::APK signed with an unexpected certificate: $SIGNED"
+            exit 1
+          fi
+          cp "$APK" "/tmp/${{ env.CI_PACKAGE_NAME }}-rd8100-${{ env.ARTIFACT_NAME }}.apk"
+
+      - name: 🧹 Remove signing key
+        if: always()
+        run: rm -f "${{ github.workspace }}/keystore.p12"
 
       - name: 📤 Upload APK
         uses: actions/upload-artifact@v7
